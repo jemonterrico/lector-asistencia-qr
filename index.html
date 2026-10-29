@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control de asistencia QR</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 25px auto;
+      padding: 16px;
+      text-align: center;
+      background: #f4f6f8;
+    }
+    input, button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 13px;
+      margin: 7px 0;
+      font-size: 16px;
+      border-radius: 8px;
+    }
+    input { border: 1px solid #bbb; }
+    button {
+      border: 0;
+      background: #1769aa;
+      color: white;
+      font-weight: bold;
+    }
+    #lector { margin-top: 18px; }
+    #mensaje {
+      margin-top: 18px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+<body>
+  <h2>Control de asistencia</h2>
+  <p>Ingresa los datos de conexión para comenzar.</p>
+
+  <input id="url" type="url" placeholder="URL de Apps Script terminada en /exec">
+  <input id="clave" type="password" placeholder="Clave de asistencia">
+  <button id="conectar" onclick="conectar()">Conectar y activar cámara</button>
+
+  <div id="lector"></div>
+  <div id="mensaje">Esperando conexión.</div>
+
+  <script>
+    let lector = null;
+    let ocupado = false;
+    let urlServidor = "";
+    let claveServidor = "";
+
+    function mostrar(texto) {
+      document.getElementById("mensaje").textContent = texto;
+    }
+
+    async function conectar() {
+      urlServidor = document.getElementById("url").value.trim();
+      claveServidor = document.getElementById("clave").value;
+
+      if (!urlServidor.endsWith("/exec") || !claveServidor) {
+        mostrar("Ingresa la URL correcta y tu clave.");
+        return;
+      }
+
+      try {
+        lector = new Html5Qrcode("lector");
+        await lector.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          procesarQR
+        );
+        mostrar("Cámara activa. Escanea un código QR.");
+      } catch (error) {
+        mostrar("No se pudo abrir la cámara. Revisa los permisos del navegador.");
+      }
+    }
+
+    async function procesarQR(texto) {
+      if (ocupado) return;
+      ocupado = true;
+
+      try {
+        await lector.stop();
+        const id = texto.trim();
+
+        mostrar("Registrando asistencia...");
+
+        const respuesta = await fetch(urlServidor, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ id: id, clave: claveServidor })
+        });
+
+        const resultado = await respuesta.json();
+
+        mostrar(resultado.mensaje || (resultado.ok
+          ? "Asistencia registrada."
+          : "No se pudo registrar la asistencia."));
+
+      } catch (error) {
+        mostrar("No se pudo confirmar la respuesta. Revisa la conexión y la configuración.");
+      }
+
+      setTimeout(async () => {
+        try {
+          await lector.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            procesarQR
+          );
+        } catch (error) {
+          mostrar("Toca recargar la página para volver a activar la cámara.");
+        }
+        ocupado = false;
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
