@@ -89,6 +89,7 @@
 
       try {
         await lector.stop();
+        mostrar("Contenido leído por la cámara: [" + texto + "]");
         const id = texto.trim().replace(/^["']+|["']+$/g, '').trim();
 
         mostrar("Registrando asistencia...");
