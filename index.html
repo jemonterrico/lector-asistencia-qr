@@ -89,7 +89,7 @@
 
       try {
         await lector.stop();
-        const id = texto.trim();
+        const id = texto.trim().replace(/^["']+|["']+$/g, '').trim();
 
         mostrar("Registrando asistencia...");
 
